@@ -1,4 +1,4 @@
-# GTAE: Graph-Transformer Based Auto Encoders for Text Style Transfer
+# GTAE: Graph-Transformer Based Auto Encoder for Text Style Transfer
 
 ## Requires
 
