@@ -25,13 +25,15 @@ lambda_g_graph = 0.02    # Weight of the graph classification loss
 lambda_g_sentence = 0.02 # Weight of the sentence classification loss
 gamma_decay = 0.5 # Gumbel-softmax temperature anneal rate
 
+max_sequence_length = 15
+
 train_data = {
     'batch_size': 64,
     #'seed': 123,
     'datasets': [
         {
             'files': './data/yelp/sentiment.train.text',
-            'vocab_file': './data/yelp/vocab',
+            'vocab_file': './data/yelp/vocab_yelp',
             'data_name': ''
         },
         {
@@ -40,11 +42,11 @@ train_data = {
             'data_name': 'labels'
         },
         {
-            'files': './data/yelp/train_adj.tfrecords',
+            'files': './data/yelp/sentiment.train_adjs.tfrecords',
             'data_type': 'tf_record',
             'numpy_options': {
                 'numpy_ndarray_name': 'adjs',
-                'shape': [17, 17],
+                'shape': [max_sequence_length + 2, max_sequence_length + 2],
                 'dtype': 'tf.int32'
             },
             'feature_original_types':{
@@ -58,12 +60,12 @@ train_data = {
 val_data = copy.deepcopy(train_data)
 val_data['datasets'][0]['files'] = './data/yelp/sentiment.dev.text'
 val_data['datasets'][1]['files'] = './data/yelp/sentiment.dev.labels'
-val_data['datasets'][2]['files'] = './data/yelp/valid_adj.tfrecords'
+val_data['datasets'][2]['files'] = './data/yelp/sentiment.dev_adjs.tfrecords'
 
 test_data = copy.deepcopy(train_data)
 test_data['datasets'][0]['files'] = './data/yelp/sentiment.test.text'
 test_data['datasets'][1]['files'] = './data/yelp/sentiment.test.labels'
-test_data['datasets'][2]['files'] = './data/yelp/test_adj.tfrecords'
+test_data['datasets'][2]['files'] = './data/yelp/sentiment.test_adjs.tfrecords'
 
 dim_hidden = 512
 model = {
