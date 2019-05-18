@@ -6,14 +6,14 @@
 Preprocessing:
 
 + jdk 1.8
-+ stanford-corenlp <http://nlp.stanford.edu/software/stanford-corenlp-full-2018-02-27.zip>
++ stanford-corenlp (<http://nlp.stanford.edu/software/stanford-corenlp-full-2018-02-27.zip>)
 
 ------
 Training:
 
 + python>=3.5
 + Tensorflow-gpu==1.13
-+ Texar <https://github.com/asyml/texar)>
++ Texar (<https://github.com/asyml/texar>)
 
 ------
 
