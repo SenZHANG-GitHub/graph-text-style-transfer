@@ -27,7 +27,6 @@ from texar.modules import UnidirectionalRNNEncoder
 from texar.modules import MLPTransformConnector
 from texar.modules import AttentionRNNDecoder
 from texar.modules import BasicRNNDecoder
-from texar.modules import TransformerDecoder
 from texar.modules import GumbelSoftmaxEmbeddingHelper
 from texar.modules import Conv1DClassifier
 
@@ -38,12 +37,12 @@ from texar.modules import TransformerEncoder
 from texar.utils import transformer_utils
 
 from models.self_graph_transformer import SelfGraphTransformerEncoder
-from models.cross_graph_transformer import CrossGraphTransformerSequentialDecoder
+from models.cross_graph_transformer import CrossGraphTransformerFixedLengthDecoder
 
 from models.rnn_dynamic_decoders import DynamicAttentionRNNDecoder
 
 
-class GraphTextTransDecodeModel(object):
+class GTAE(object):
     """Control  
     """
     def __init__(self, inputs, vocab, gamma, lambda_g_graph, lambda_g_sentence, hparams=None):
@@ -74,36 +73,40 @@ class GraphTextTransDecodeModel(object):
         """
         self._prepare_modules()
         self._build_self_graph_encoder()
-        self._build_decoder()
+        self._build_cross_graph_encoder()
         self._get_loss_train_op()
     
     
     def _prepare_modules(self):
         """Prepare necessary modules
         """
-        self.embedder = WordEmbedder(vocab_size=self.vocab.size, hparams=self._hparams.embedder)
-        self.clas_embedder = WordEmbedder(vocab_size=self.vocab.size, hparams=self._hparams.embedder)
+        self.embedder = WordEmbedder(
+            vocab_size = self.vocab.size, 
+            hparams=self._hparams.embedder
+        )
+        self.clas_embedder = WordEmbedder(
+            vocab_size = self.vocab.size, 
+            hparams = self._hparams.embedder
+        )
         self.label_connector = MLPTransformConnector(self._hparams.dim_c)
 
         self.self_graph_encoder = SelfGraphTransformerEncoder(hparams=self._hparams.encoder)
-        self.decoder = DynamicAttentionRNNDecoder(
-            memory_sequence_length = self.sequence_length - 1,
-            cell_input_fn = lambda inputs, attention: inputs,
+        self.cross_graph_encoder = CrossGraphTransformerFixedLengthDecoder(
             vocab_size = self.vocab.size,
-            hparams = self._hparams.decoder
+            tau = self.gamma,
+            hparams = self._hparams.encoder
         )
-        # TransformerDecoder will lead to OOM
-        # self.decoder = TransformerDecoder(
-        #     vocab_size = self.vocab.size,
-        #     hparams = self._hparams.decoder
-        # )
-        # self.cross_graph_decoder = CrossGraphTransformerSequentialDecoder(
-        #     vocab_size = self.vocab.size,
-        #     hparams = self._hparams.decoder
-        # )
 
         self.classifier_graph = Conv1DClassifier(hparams=self._hparams.classifier)
         self.classifier_sentence = Conv1DClassifier(hparams=self._hparams.classifier)
+
+        self.rephrase_encoder = UnidirectionalRNNEncoder(hparams=self._hparams.rephrase_encoder)
+        self.rephrase_decoder =DynamicAttentionRNNDecoder(
+            memory_sequence_length = self.sequence_length - 1,
+            cell_input_fn = lambda inputs, attention: inputs,
+            vocab_size = self.vocab.size,
+            hparams = self._hparams.rephrase_decoder
+        )
 
 
     def _build_self_graph_encoder(self):
@@ -144,13 +147,6 @@ class GraphTextTransDecodeModel(object):
             sequence_length = self.sequence_length, 
             adjs = self.adjs
         )
-
-        # self.enc_outputs_state = self.initial_state_connector(self.enc_outputs)
-        # self.enc_outputs_state_ = self.initial_state_connector(self.enc_outputs_)
-
-        self.enc_outputs_state = tf.map_fn(fn=lambda x: tf.reduce_mean(x[0][1:x[1], :], axis=0), elems=(self.enc_outputs, self.sequence_length), dtype=tf.float32)
-        self.enc_outputs_state_ = tf.map_fn(fn=lambda x: tf.reduce_mean(x[0][1:x[1], :], axis=0), elems=(self.enc_outputs_, self.sequence_length), dtype=tf.float32)
-
         self._train_ori_clas_graph()
         self._train_trans_clas_graph()
     
@@ -203,10 +199,10 @@ class GraphTextTransDecodeModel(object):
         )
 
     
-    def _build_decoder(self):
+    def _build_cross_graph_encoder(self):
         """
         Use: 
-            self.decoder, self.enc_outputs
+            self.cross_graph_encoder, self.enc_outputs
             self.pre_embedding_text_ids
 
         Create:
@@ -216,42 +212,29 @@ class GraphTextTransDecodeModel(object):
         # The first token that represents BOS/CLS is removed
         # Currently use the same sequence_length and memory_sequence_length
         # Later we may consider use the CLS flag in embedding_text_ids to guide the generation
-        self.g_outputs, _, _ = self.decoder(
-            initial_state = self.enc_outputs_state,
-            memory = self.enc_outputs[:, 1:, :],
-            sequence_length = self.sequence_length - 1,
-            inputs = self.text_ids,
-            embedding = self.embedder
+        self.g_outputs = self.cross_graph_encoder(
+            inputs = self.enc_outputs[:, 1:, :], 
+            memory = self.pre_embedding_text_ids,
+            sequence_length = self.sequence_length - 1, 
+            memory_sequence_length = self.sequence_length-1,
+            adjs = self.adjs[:, 1:, 1:],
+            encoder_output = True
         )
-
-        self._train_auto_encoder()
-        self._train_ori_clas_sentence()
         
         # Classification loss for the generator, based on soft samples
         # Continuous softmax decoding, used in training
         # We will consider Gumbel-softmax decoding
-        start_tokens = tf.ones_like(self.labels) * self.vocab.bos_token_id
-        end_token = self.vocab.eos_token_id
-        gumbel_helper = GumbelSoftmaxEmbeddingHelper(self.embedder.embedding, start_tokens, end_token, self.gamma)
-
-        # for training
-        self.soft_g_outputs_, _, self.soft_g_length_ = self.decoder(
-            memory = self.enc_outputs_[:, 1:, :], 
-            initial_state = self.enc_outputs_state_,
-            helper = gumbel_helper,
-        )
-
-        # for eval
-        self.g_outputs_, _, self.g_length_ = self.decoder(
-            decoding_strategy='infer_greedy',
-            memory = self.enc_outputs_[:, 1:, :],
+        self.g_outputs_ = self.cross_graph_encoder(
+            inputs = self.enc_outputs_[:, 1:, :],
+            memory = self.pre_embedding_text_ids,
+            sequence_length = self.sequence_length - 1,
             memory_sequence_length = self.sequence_length - 1,
-            nitial_state = self.enc_outputs_state_,
-            embedding = self.embedder, 
-            start_tokens = start_tokens, 
-            end_token = end_token
+            adjs = self.adjs[:, 1:, 1:],
+            encoder_output = True
         )
 
+        self._train_auto_encoder()
+        self._train_ori_clas_sentence()
         self._train_trans_clas_sentence()
     
     
@@ -264,9 +247,20 @@ class GraphTextTransDecodeModel(object):
         Create:
             self.loss_g_ae
         """
+        rephrase_enc, rephrase_state = self.rephrase_encoder(
+            self.g_outputs, 
+            sequence_length = self.sequence_length - 1
+        )
+        rephrase_outputs, _, _ = self.rephrase_decoder(
+            initial_state = rephrase_state,
+            memory = rephrase_enc, # embedder(inputs['text_ids'][:, 1:]),
+            sequence_length = self.sequence_length - 1,
+            inputs = self.text_ids,
+            embedding = self.embedder
+        )
         self.loss_g_ae = tx.losses.sequence_sparse_softmax_cross_entropy(
             labels = self.text_ids[:, 1:],
-            logits = self.g_outputs.logits,
+            logits = rephrase_outputs.logits,
             sequence_length = self.sequence_length - 1,
             average_across_timesteps = True,
             sum_over_timesteps = False
@@ -307,10 +301,29 @@ class GraphTextTransDecodeModel(object):
             self.loss_g_clas_sentence, self.accu_g_sentence,
             self.accu_g_gdy_sentence
         """
+        # Gumbel-softmax decoding, used in training
+        start_tokens = tf.ones_like(self.labels) * self.vocab.bos_token_id
+        end_token = self.vocab.eos_token_id
+        gumbel_helper = GumbelSoftmaxEmbeddingHelper(
+            self.embedder.embedding, 
+            start_tokens, 
+            end_token, 
+            self.gamma
+        )
+        rephrase_enc_, rephrase_state_ = self.rephrase_encoder(
+            self.g_outputs_, 
+            sequence_length = self.sequence_length - 1
+        )
+
         # Accuracy on soft samples, for training progress monitoring
+        soft_rephrase_outputs_, _, soft_rephrase_length_ = self.rephrase_decoder(
+            memory = rephrase_enc_, 
+            helper = gumbel_helper,
+            initial_state = rephrase_state_
+        )
         soft_logits_sentence, soft_preds_sentence = self.classifier_sentence(
-            inputs = self.clas_embedder(soft_ids=self.soft_g_outputs_.sample_id),
-            sequence_length = self.soft_g_length_
+            inputs = self.clas_embedder(soft_ids=soft_rephrase_outputs_.sample_id),
+            sequence_length = soft_rephrase_length_
         )
         loss_g_clas_sentence = tf.nn.sigmoid_cross_entropy_with_logits(
             labels = tf.to_float(1 - self.labels), 
@@ -323,9 +336,17 @@ class GraphTextTransDecodeModel(object):
         )
 
         # Greedy decoding, used in eval, for training progress monitoring
+        self.rephrase_outputs_, _, rephrase_length_ = self.rephrase_decoder(
+            decoding_strategy = 'infer_greedy',
+            memory = rephrase_enc_,
+            initial_state = rephrase_state_,
+            embedding = self.embedder,
+            start_tokens = start_tokens,
+            end_token = end_token
+        ) 
         _, gdy_preds_sentence = self.classifier_sentence(
-            inputs = self.clas_embedder(ids=self.g_outputs_.sample_id),
-            sequence_length = self.g_length_
+            inputs = self.clas_embedder(ids=self.rephrase_outputs_.sample_id),
+            sequence_length = rephrase_length_
         )
         self.accu_g_gdy_sentence = tx.evals.accuracy(
             labels = 1 - self.labels,
@@ -340,7 +361,7 @@ class GraphTextTransDecodeModel(object):
 
         # Creates optimizers
         self.g_vars = collect_trainable_variables(
-            [self.embedder, self.self_graph_encoder, self.label_connector, self.decoder])
+            [self.embedder, self.self_graph_encoder, self.label_connector, self.cross_graph_encoder, self.rephrase_encoder, self.rephrase_decoder])
         self.d_vars = collect_trainable_variables([self.clas_embedder, self.classifier_graph, self.classifier_sentence])
 
         self.train_op_g = get_train_op(
@@ -374,7 +395,7 @@ class GraphTextTransDecodeModel(object):
         }
         self.samples = {
             "original": self.text_ids[:, 1:],
-            "transferred": self.g_outputs_.sample_id
+            "transferred": self.rephrase_outputs_.sample_id
         }
 
         self.fetches_train_g = {

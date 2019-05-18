@@ -19,7 +19,7 @@ sample_path = './samples'
 checkpoint_path = './checkpoints'
 restore = ''   # Model snapshot to restore from
 
-model_name = 'GraphTextTransModel'
+model_name = 'GTAE'
 
 lambda_g_graph = 0.02    # Weight of the graph classification loss
 lambda_g_sentence = 0.02 # Weight of the sentence classification loss

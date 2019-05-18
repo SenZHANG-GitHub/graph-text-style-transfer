@@ -42,16 +42,15 @@ import numpy as np
 import tensorflow as tf
 import texar as tx
 
-from models.gtt_rewrite_model import GraphTextTransRewriteModel
-from models.gtt_decode_model import GraphTextTransDecodeModel
+from models.GTAE_model import GTAE
 from models.graph_text_trans_model import GraphTextTransModel
 from utils_data.multi_aligned_data_with_numpy import MultiAlignedNumpyData
 
 
 # get config
 flags = tf.flags
-flags.DEFINE_string('config', 'config_gtt_political', 'The config to use.')
-flags.DEFINE_string('out', 'tmp2', 'The config to use.')
+flags.DEFINE_string('config', 'config', 'The config to use.')
+flags.DEFINE_string('out', 'tmp', 'The config to use.')
 FLAGS = flags.FLAGS
 config = importlib.import_module(FLAGS.config)
 output_path = FLAGS.out
@@ -110,10 +109,8 @@ def _main(_):
     lambda_g_graph = tf.placeholder(dtype=tf.float32, shape=[], name='lambda_g_graph')
     lambda_g_sentence = tf.placeholder(dtype=tf.float32, shape=[], name='lambda_g_sentence')
     
-    if config.model_name == 'GraphTextTransDecodeModel':
-        model = GraphTextTransDecodeModel(batch, vocab, gamma, lambda_g_graph, lambda_g_sentence, config.model)
-    elif config.model_name == 'GraphTextTransRewriteModel':
-        model = GraphTextTransRewriteModel(batch, vocab, gamma, lambda_g_graph, lambda_g_sentence, config.model)
+    if config.model_name == 'GTAE':
+        model = GTAE(batch, vocab, gamma, lambda_g_graph, lambda_g_sentence, config.model)
     elif config.model_name == 'GraphTextTransModel':
         model = GraphTextTransModel(batch, vocab, gamma, lambda_g_graph, lambda_g_sentence, config.model)
     else:
