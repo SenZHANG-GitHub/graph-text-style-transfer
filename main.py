@@ -43,7 +43,6 @@ import tensorflow as tf
 import texar as tx
 
 from models.GTAE_model import GTAE
-from models.graph_text_trans_model import GraphTextTransModel
 from utils_data.multi_aligned_data_with_numpy import MultiAlignedNumpyData
 
 
@@ -111,8 +110,6 @@ def _main(_):
     
     if config.model_name == 'GTAE':
         model = GTAE(batch, vocab, gamma, lambda_g_graph, lambda_g_sentence, config.model)
-    elif config.model_name == 'GraphTextTransModel':
-        model = GraphTextTransModel(batch, vocab, gamma, lambda_g_graph, lambda_g_sentence, config.model)
     else:
         logger.error('config.model_name: {} is incorrect'.format(config.model_name))
         raise ValueError('config.model_name: {} is incorrect'.format(config.model_name))

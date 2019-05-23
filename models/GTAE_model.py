@@ -161,7 +161,7 @@ class GTAE(object):
         """
         # Do not consider the style node embedding
         clas_logits_graph, clas_preds_graph = self.classifier_graph(
-            inputs = self.embedding_text_ids[:, 1:, :],
+            inputs = self.enc_outputs[:, 1:, :],
             sequence_length = self.sequence_length - 1
         )
         loss_d_clas_graph = tf.nn.sigmoid_cross_entropy_with_logits(

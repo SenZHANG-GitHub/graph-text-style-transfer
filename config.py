@@ -9,7 +9,7 @@ from __future__ import print_function
 import copy
 import texar as tx
 
-max_nepochs = 15 # Total number of training epochs
+max_nepochs = 13 # Total number of training epochs
                  # (including pre-train and full-train)
 pretrain_nepochs = 10 # Number of pre-train epochs (training as autoencoder)
 display = 500  # Display the training results every N training steps.
@@ -22,13 +22,13 @@ restore = ''   # Model snapshot to restore from
 model_name = 'GTAE'
 
 lambda_g_graph = 0.02    # Weight of the graph classification loss
-lambda_g_sentence = 0.02 # Weight of the sentence classification loss
+lambda_g_sentence = 0.05 # Weight of the sentence classification loss
 gamma_decay = 0.5 # Gumbel-softmax temperature anneal rate
 
 max_sequence_length = 15
 
 train_data = {
-    'batch_size': 64,
+    'batch_size': 128,
     #'seed': 123,
     'datasets': [
         {
