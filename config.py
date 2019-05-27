@@ -25,7 +25,7 @@ lambda_g_graph = 0.02    # Weight of the graph classification loss
 lambda_g_sentence = 0.05 # Weight of the sentence classification loss
 gamma_decay = 0.5 # Gumbel-softmax temperature anneal rate
 
-max_sequence_length = 15
+max_sequence_length = 15 # Maximum number of tokens in a sentence
 
 train_data = {
     'batch_size': 128,

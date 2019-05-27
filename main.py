@@ -11,20 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Text style transfer
+"""Text style transfer Under Linguistic Constraints
 
-This is a simplified implementation of:
+This is the implementation of:
 
-Toward Controlled Generation of Text, ICML2017
-Zhiting Hu, Zichao Yang, Xiaodan Liang, Ruslan Salakhutdinov, Eric Xing
+Linguistic-Constrained Text Style Transfer for Content and Logic Preservation
 
-Download the data with the cmd:
+Follow the instructions in README.md to run the code
 
-$ python prepare_data.py
-
-Train the model with the cmd:
-
-$ python main.py --config config
 """
 from __future__ import absolute_import
 from __future__ import division
