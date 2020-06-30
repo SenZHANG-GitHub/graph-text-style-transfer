@@ -14,7 +14,7 @@ Training:
 + python>=3.5
 + Tensorflow-gpu==1.13
 + Texar (<https://github.com/asyml/texar>)
-
++ Need to add data/ folder manually
 ------
 
 ## Usage
