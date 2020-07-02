@@ -66,17 +66,9 @@ class GTAE(object):
         self.inputs = inputs
 
         enc_shape = tf.shape(self.text_ids)
-        
         adjs = tf.to_int32(tf.reshape(inputs['adjs'], [-1,17,17]))
-        # self.adjs = adjs[:, :enc_shape[1], :enc_shape[1]]
-        self.adjs_length = tf.reduce_sum(adjs, axis=2)
-        
-        identity_adjs = tf.to_int32(tf.eye(17))
-        
-        self.adjs = adjs[:, :enc_shape[1], :enc_shape[1]] + identity_adjs
-        
-        self.enc_shape = enc_shape
-        # self.adjs = tf.ones([enc_shape[0], enc_shape[1], enc_shape[1]])
+        self.adjs = adjs[:, :enc_shape[1], :enc_shape[1]]
+        # self.adjs_length = tf.reduce_sum(adjs, axis=2)
 
 
     def _build_model(self):

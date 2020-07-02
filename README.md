@@ -7,6 +7,8 @@ Preprocessing:
 
 + jdk 1.8
 + stanford-corenlp (<http://nlp.stanford.edu/software/stanford-corenlp-full-2018-02-27.zip>)
++ nltk==3.5
++ tqdm
 
 ------
 Training:
