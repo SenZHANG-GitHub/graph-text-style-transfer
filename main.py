@@ -45,7 +45,13 @@ flags = tf.flags
 flags.DEFINE_string('config', 'config', 'The config to use.')
 flags.DEFINE_string('out', 'tmp', 'The output folder.')
 flags.DEFINE_string('ablation', 'full', 'The ablation mode')
+flags.DEFINE_float('lambda_t_graph', 0.05, 'Replace the one in config.py')
+flags.DEFINE_float('lambda_t_sentence', 0.02, 'Replace the one in config.py')
+flags.DEFINE_integer('pretrain_nepochs', 10, 'Replace the one in config.py')
+flags.DEFINE_integer('fulltrain_nepochs', 3, 'Replace the one in config.py')
+
 FLAGS = flags.FLAGS
+
 config = importlib.import_module(FLAGS.config)
 # possible ablation: SGT-I, CGT-I,warm-up-k, c-clas-g-only, c-clas-s-only, t-clas-g-only, t-clas-s-only
 ablation = FLAGS.ablation
@@ -57,11 +63,10 @@ checkpoint_path = '{}/checkpoint_path'.format(output_path)
 
 # process for different ablation modes
 if 'warm-up' in ablation:
-    pretrain_nepochs = int(ablation.split('-')[-1])
-    max_nepochs = pretrain_nepochs + config.fulltrain_nepochs
-else:
-    pretrain_nepochs = config.pretrain_nepochs
-    max_nepochs = config.max_nepochs
+    if not (int(ablation.split('-')[-1]) == FLAGS.pretrain_nepochs): 
+        raise ValueError('--ablation warm-up-k should be consistent with --pretrain_nepochs k')
+max_nepochs = FLAGS.pretrain_nepochs + FLAGS.fulltrain_nepochs
+    
 
 # get logger
 logger = logging.getLogger(__name__)
@@ -112,16 +117,16 @@ def _main(_):
 
     # Model
     gamma = tf.placeholder(dtype=tf.float32, shape=[], name='gamma')
-    lambda_g_graph = tf.placeholder(dtype=tf.float32, shape=[], name='lambda_g_graph')
-    lambda_g_sentence = tf.placeholder(dtype=tf.float32, shape=[], name='lambda_g_sentence')
+    lambda_t_graph = tf.placeholder(dtype=tf.float32, shape=[], name='lambda_t_graph')
+    lambda_t_sentence = tf.placeholder(dtype=tf.float32, shape=[], name='lambda_t_sentence')
     
     if config.model_name == 'GTAE':
-        model = GTAE(batch, vocab, gamma, lambda_g_graph, lambda_g_sentence, config.model)
+        model = GTAE(batch, vocab, gamma, lambda_t_graph, lambda_t_sentence, config.model)
     else:
         logger.error('config.model_name: {} is incorrect'.format(config.model_name))
         raise ValueError('config.model_name: {} is incorrect'.format(config.model_name))
 
-    def _train_epoch(sess, gamma_, lambda_g_graph_, lambda_g_sentence_, epoch, verbose=True):
+    def _train_epoch(sess, gamma_, lambda_t_graph_, lambda_t_sentence_, epoch, verbose=True):
         avg_meters_d = tx.utils.AverageRecorder(size=10)
         avg_meters_g = tx.utils.AverageRecorder(size=10)
 
@@ -132,23 +137,21 @@ def _main(_):
                 feed_dict = {
                     iterator.handle: iterator.get_handle(sess, 'train_d'),
                     gamma: gamma_,
-                    lambda_g_graph: lambda_g_graph_,
-                    lambda_g_sentence: lambda_g_sentence_
+                    lambda_t_graph: lambda_t_graph_,
+                    lambda_t_sentence: lambda_t_sentence_
                 }
 
                 vals_d = sess.run(model.fetches_train_d, feed_dict=feed_dict)
-                pdb.set_trace()
-                # avg_meters_d.add(vals_d)
+                avg_meters_d.add(vals_d)
 
                 feed_dict = {
                     iterator.handle: iterator.get_handle(sess, 'train_g'),
                     gamma: gamma_,
-                    lambda_g_graph: lambda_g_graph_,
-                    lambda_g_sentence: lambda_g_sentence_
+                    lambda_t_graph: lambda_t_graph_,
+                    lambda_t_sentence: lambda_t_sentence_
                 }
                 vals_g = sess.run(model.fetches_train_g, feed_dict=feed_dict)
-                pdb.set_trace()
-                # avg_meters_g.add(vals_g)
+                avg_meters_g.add(vals_g)
 
                 if verbose and (step == 1 or step % config.display == 0):
                     logger.info('step: {}, {}'.format(step, avg_meters_d.to_str(4)))
@@ -157,7 +160,7 @@ def _main(_):
 
                 if verbose and step % config.display_eval == 0:
                     iterator.restart_dataset(sess, 'val')
-                    _eval_epoch(sess, gamma_, lambda_g_graph_, lambda_g_sentence_, epoch)
+                    _eval_epoch(sess, gamma_, lambda_t_graph_, lambda_t_sentence_, epoch)
 
             except tf.errors.OutOfRangeError:
                 logger.info('epoch: {}, {}'.format(epoch, avg_meters_d.to_str(4)))
@@ -165,7 +168,7 @@ def _main(_):
                 sys.stdout.flush()
                 break
 
-    def _eval_epoch(sess, gamma_, lambda_g_graph_, lambda_g_sentence_, epoch, val_or_test='val'):
+    def _eval_epoch(sess, gamma_, lambda_t_graph_, lambda_t_sentence_, epoch, val_or_test='val'):
         avg_meters = tx.utils.AverageRecorder()
 
         while True:
@@ -173,8 +176,8 @@ def _main(_):
                 feed_dict = {
                     iterator.handle: iterator.get_handle(sess, val_or_test),
                     gamma: gamma_,
-                    lambda_g_graph: lambda_g_graph_,
-                    lambda_g_sentence: lambda_g_sentence_,
+                    lambda_t_graph: lambda_t_graph_,
+                    lambda_t_sentence: lambda_t_sentence_,
                     tx.context.global_mode(): tf.estimator.ModeKeys.EVAL
                 }
 
@@ -221,30 +224,30 @@ def _main(_):
         iterator.initialize_dataset(sess)
 
         gamma_ = 1.
-        lambda_g_graph_ = 0.
-        lambda_g_sentence_ = 0.
+        lambda_t_graph_ = 0.
+        lambda_t_sentence_ = 0.
         for epoch in range(1, max_nepochs + 1):
-            if epoch > pretrain_nepochs:
+            if epoch > FLAGS.pretrain_nepochs:
                 # Anneals the gumbel-softmax temperature
                 gamma_ = max(0.001, gamma_ * config.gamma_decay)
-                lambda_g_graph_ = config.lambda_g_graph
-                lambda_g_sentence_ = config.lambda_g_sentence
-            logger.info('gamma: {}, lambda_g_graph: {}, lambda_g_sentence: {}'.format(gamma_, lambda_g_graph_, lambda_g_sentence_))
+                lambda_t_graph_ = FLAGS.lambda_t_graph
+                lambda_t_sentence_ = FLAGS.lambda_t_sentence
+            logger.info('gamma: {}, lambda_t_graph: {}, lambda_t_sentence: {}'.format(gamma_, lambda_t_graph_, lambda_t_sentence_))
 
             # Train
             iterator.restart_dataset(sess, ['train_g', 'train_d'])
-            _train_epoch(sess, gamma_, lambda_g_graph_, lambda_g_sentence_, epoch)
+            _train_epoch(sess, gamma_, lambda_t_graph_, lambda_t_sentence_, epoch)
 
             # Val
             iterator.restart_dataset(sess, 'val')
-            _eval_epoch(sess, gamma_, lambda_g_graph_, lambda_g_sentence_, epoch, 'val')
+            _eval_epoch(sess, gamma_, lambda_t_graph_, lambda_t_sentence_, epoch, 'val')
 
-            if epoch > pretrain_nepochs:
+            if epoch > FLAGS.pretrain_nepochs:
                 saver.save(sess, os.path.join(checkpoint_path, 'ckpt'), epoch)
 
             # Test
             iterator.restart_dataset(sess, 'test')
-            _eval_epoch(sess, gamma_, lambda_g_graph_, lambda_g_sentence_, epoch, 'test')
+            _eval_epoch(sess, gamma_, lambda_t_graph_, lambda_t_sentence_, epoch, 'test')
     
     logger.info('tensorflow training process finished successlly!')
     if not os.path.exists('{}.log'.format(output_path)):

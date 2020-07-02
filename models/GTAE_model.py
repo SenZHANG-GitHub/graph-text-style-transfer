@@ -46,17 +46,17 @@ import pdb
 class GTAE(object):
     """Control  
     """
-    def __init__(self, inputs, vocab, gamma, lambda_g_graph, lambda_g_sentence, hparams=None):
+    def __init__(self, inputs, vocab, gamma, lambda_t_graph, lambda_t_sentence, hparams=None):
         self._hparams = tx.HParams(hparams, None)
-        self._prepare_inputs(inputs, vocab, gamma, lambda_g_graph, lambda_g_sentence),
+        self._prepare_inputs(inputs, vocab, gamma, lambda_t_graph, lambda_t_sentence),
         self._build_model()
     
 
-    def _prepare_inputs(self, inputs, vocab, gamma, lambda_g_graph, lambda_g_sentence):
+    def _prepare_inputs(self, inputs, vocab, gamma, lambda_t_graph, lambda_t_sentence):
         self.vocab = vocab
         self.gamma = gamma
-        self.lambda_g_graph = lambda_g_graph
-        self.lambda_g_sentence = lambda_g_sentence
+        self.lambda_t_graph = lambda_t_graph
+        self.lambda_t_sentence = lambda_t_sentence
 
         # the first token is the BOS token
         self.text_ids = inputs['text_ids']
@@ -359,7 +359,7 @@ class GTAE(object):
 
     def _get_loss_train_op(self):
         # Aggregates losses
-        self.loss_g = self.loss_g_ae + self.lambda_g_graph * self.loss_g_clas_graph + self.lambda_g_sentence * self.loss_g_clas_sentence
+        self.loss_g = self.loss_g_ae + self.lambda_t_graph * self.loss_g_clas_graph + self.lambda_t_sentence * self.loss_g_clas_sentence
         self.loss_d = self.loss_d_clas_graph + self.loss_d_clas_sentence
 
         # Creates optimizers
@@ -408,16 +408,16 @@ class GTAE(object):
             "loss_g_clas_sentence": self.losses["loss_g_clas_sentence"],
             "accu_g_graph": self.metrics["accu_g_graph"],
             "accu_g_sentence": self.metrics["accu_g_sentence"],
-            "accu_g_gdy_sentence": self.metrics["accu_g_gdy_sentence"],
-            'adjs': self.adjs
+            "accu_g_gdy_sentence": self.metrics["accu_g_gdy_sentence"]
+            # 'adjs': self.adjs
         }
         self.fetches_train_d = {
             "loss_d": self.train_ops["train_op_d"],
             "loss_d_clas_graph": self.losses["loss_d_clas_graph"],
             "loss_d_clas_sentence": self.losses["loss_d_clas_sentence"],
             "accu_d_graph": self.metrics["accu_d_graph"],
-            "accu_d_sentence": self.metrics["accu_d_sentence"],
-            'adjs': self.adjs
+            "accu_d_sentence": self.metrics["accu_d_sentence"]
+            # 'adjs': self.adjs
         }
         fetches_eval = {"batch_size": get_batch_size(self.text_ids)}
         fetches_eval.update(self.losses)

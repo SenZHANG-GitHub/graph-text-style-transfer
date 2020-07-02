@@ -39,7 +39,7 @@ Training:
 + Configure your data paths and model parameters as specified in 'config_gtt.py'
 
 + Training:
-  + 'python main.py --config config_gtt --out output_path'
+  + 'CUDA_VISIBLE_DEVICES=0 python main.py --config config --out output_path --lambda_t_graph 0.05 --lambda_t_sentence 0.02 --pretrain_nepochs 10 --fulltrain_nepochs 3'
   + --out is necessary
   + checkpoints/ is not saved to output_path automatically (too large). Save this folder manually if necessary, otherwise it will be erased every time we run main.py
 
