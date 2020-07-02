@@ -40,6 +40,7 @@ from models.self_graph_transformer import SelfGraphTransformerEncoder
 from models.cross_graph_transformer import CrossGraphTransformerFixedLengthDecoder
 
 from models.rnn_dynamic_decoders import DynamicAttentionRNNDecoder
+import pdb
 
 
 class GTAE(object):
@@ -61,10 +62,20 @@ class GTAE(object):
         self.text_ids = inputs['text_ids']
         self.sequence_length = inputs['length']
         self.labels = inputs['labels']
+        
+        self.inputs = inputs
 
         enc_shape = tf.shape(self.text_ids)
+        
         adjs = tf.to_int32(tf.reshape(inputs['adjs'], [-1,17,17]))
-        self.adjs = adjs[:, :enc_shape[1], :enc_shape[1]]
+        # self.adjs = adjs[:, :enc_shape[1], :enc_shape[1]]
+        self.adjs_length = tf.reduce_sum(adjs, axis=2)
+        
+        identity_adjs = tf.to_int32(tf.eye(17))
+        
+        self.adjs = adjs[:, :enc_shape[1], :enc_shape[1]] + identity_adjs
+        
+        self.enc_shape = enc_shape
         # self.adjs = tf.ones([enc_shape[0], enc_shape[1], enc_shape[1]])
 
 
@@ -405,14 +416,16 @@ class GTAE(object):
             "loss_g_clas_sentence": self.losses["loss_g_clas_sentence"],
             "accu_g_graph": self.metrics["accu_g_graph"],
             "accu_g_sentence": self.metrics["accu_g_sentence"],
-            "accu_g_gdy_sentence": self.metrics["accu_g_gdy_sentence"]
+            "accu_g_gdy_sentence": self.metrics["accu_g_gdy_sentence"],
+            'adjs': self.adjs
         }
         self.fetches_train_d = {
             "loss_d": self.train_ops["train_op_d"],
             "loss_d_clas_graph": self.losses["loss_d_clas_graph"],
             "loss_d_clas_sentence": self.losses["loss_d_clas_sentence"],
             "accu_d_graph": self.metrics["accu_d_graph"],
-            "accu_d_sentence": self.metrics["accu_d_sentence"]
+            "accu_d_sentence": self.metrics["accu_d_sentence"],
+            'adjs': self.adjs
         }
         fetches_eval = {"batch_size": get_batch_size(self.text_ids)}
         fetches_eval.update(self.losses)

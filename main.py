@@ -43,12 +43,25 @@ from utils_data.multi_aligned_data_with_numpy import MultiAlignedNumpyData
 # get config
 flags = tf.flags
 flags.DEFINE_string('config', 'config', 'The config to use.')
-flags.DEFINE_string('out', 'tmp', 'The config to use.')
+flags.DEFINE_string('out', 'tmp', 'The output folder.')
+flags.DEFINE_string('ablation', 'full', 'The ablation mode')
 FLAGS = flags.FLAGS
 config = importlib.import_module(FLAGS.config)
+# possible ablation: SGT-I, CGT-I,warm-up-k, c-clas-g-only, c-clas-s-only, t-clas-g-only, t-clas-s-only
+ablation = FLAGS.ablation
 output_path = FLAGS.out
 if output_path == 'none':
     raise ValueError('output path is not specified. E.g. python main.py --out output_path')
+sample_path = '{}/samples'.format(output_path)
+checkpoint_path = '{}/checkpoint_path'.format(output_path)
+
+# process for different ablation modes
+if 'warm-up' in ablation:
+    pretrain_nepochs = int(ablation.split('-')[-1])
+    max_nepochs = pretrain_nepochs + config.fulltrain_nepochs
+else:
+    pretrain_nepochs = config.pretrain_nepochs
+    max_nepochs = config.max_nepochs
 
 # get logger
 logger = logging.getLogger(__name__)
@@ -76,12 +89,12 @@ def _main(_):
     os.system('cp utils_data/*.py {}/src'.format(output_path))
 
     # clean sample_path and checkpoint_path before training 
-    if tf.gfile.Exists(config.sample_path):
-        tf.gfile.DeleteRecursively(config.sample_path)
-    if tf.gfile.Exists(config.checkpoint_path):
-        tf.gfile.DeleteRecursively(config.checkpoint_path)
-    tf.gfile.MakeDirs(config.sample_path)
-    tf.gfile.MakeDirs(config.checkpoint_path)
+    if tf.gfile.Exists(sample_path):
+        tf.gfile.DeleteRecursively(sample_path)
+    if tf.gfile.Exists(checkpoint_path):
+        tf.gfile.DeleteRecursively(checkpoint_path)
+    tf.gfile.MakeDirs(sample_path)
+    tf.gfile.MakeDirs(checkpoint_path)
     
     # Data
     train_data = MultiAlignedNumpyData(config.train_data)
@@ -124,7 +137,8 @@ def _main(_):
                 }
 
                 vals_d = sess.run(model.fetches_train_d, feed_dict=feed_dict)
-                avg_meters_d.add(vals_d)
+                pdb.set_trace()
+                # avg_meters_d.add(vals_d)
 
                 feed_dict = {
                     iterator.handle: iterator.get_handle(sess, 'train_g'),
@@ -133,7 +147,8 @@ def _main(_):
                     lambda_g_sentence: lambda_g_sentence_
                 }
                 vals_g = sess.run(model.fetches_train_g, feed_dict=feed_dict)
-                avg_meters_g.add(vals_g)
+                pdb.set_trace()
+                # avg_meters_g.add(vals_g)
 
                 if verbose and (step == 1 or step % config.display == 0):
                     logger.info('step: {}, {}'.format(step, avg_meters_d.to_str(4)))
@@ -182,7 +197,7 @@ def _main(_):
                 # Writes samples
                 tx.utils.write_paired_text(
                     refs.squeeze(), hyps,
-                    os.path.join(config.sample_path, 'val.%d'%epoch),
+                    os.path.join(sample_path, 'val.%d'%epoch),
                     append=True, mode='v')
 
             except tf.errors.OutOfRangeError:
@@ -208,8 +223,8 @@ def _main(_):
         gamma_ = 1.
         lambda_g_graph_ = 0.
         lambda_g_sentence_ = 0.
-        for epoch in range(1, config.max_nepochs + 1):
-            if epoch > config.pretrain_nepochs:
+        for epoch in range(1, max_nepochs + 1):
+            if epoch > pretrain_nepochs:
                 # Anneals the gumbel-softmax temperature
                 gamma_ = max(0.001, gamma_ * config.gamma_decay)
                 lambda_g_graph_ = config.lambda_g_graph
@@ -224,8 +239,8 @@ def _main(_):
             iterator.restart_dataset(sess, 'val')
             _eval_epoch(sess, gamma_, lambda_g_graph_, lambda_g_sentence_, epoch, 'val')
 
-            saver.save(
-                sess, os.path.join(config.checkpoint_path, 'ckpt'), epoch)
+            if epoch > pretrain_nepochs:
+                saver.save(sess, os.path.join(checkpoint_path, 'ckpt'), epoch)
 
             # Test
             iterator.restart_dataset(sess, 'test')
@@ -236,10 +251,6 @@ def _main(_):
         logger.error('cannot find {}.log'.format(output_path))
     else:
         os.system('mv {}.log {}/'.format(output_path, output_path))
-    if not os.path.exists('samples'):
-        logger.error('cannot find samples/')
-    else:
-        os.system('mv samples/ {}/'.format(output_path))
 
 if __name__ == '__main__':
     tf.app.run(main=_main)

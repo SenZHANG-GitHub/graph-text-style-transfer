@@ -9,20 +9,19 @@ from __future__ import print_function
 import copy
 import texar as tx
 
-max_nepochs = 13 # Total number of training epochs
-                 # (including pre-train and full-train)
 pretrain_nepochs = 10 # Number of pre-train epochs (training as autoencoder)
+fulltrain_nepochs = 3
+max_nepochs = pretrain_nepochs + fulltrain_nepochs # Total number of training epochs
+                 # (including pre-train and full-train)
 display = 500  # Display the training results every N training steps.
 display_eval = 1e10 # Display the dev results every N training steps (set to a
                     # very large value to disable it).
-sample_path = './samples'
-checkpoint_path = './checkpoints'
 restore = ''   # Model snapshot to restore from
 
 model_name = 'GTAE'
 
-lambda_g_graph = 0.02    # Weight of the graph classification loss
-lambda_g_sentence = 0.05 # Weight of the sentence classification loss
+lambda_g_graph = 0.05    # Weight of the graph classification loss
+lambda_g_sentence = 0.02 # Weight of the sentence classification loss
 gamma_decay = 0.5 # Gumbel-softmax temperature anneal rate
 
 max_sequence_length = 15 # Maximum number of tokens in a sentence

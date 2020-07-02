@@ -5,6 +5,7 @@ import tensorflow as tf
 import time
 import argparse
 from tqdm import tqdm
+import pdb
 
 args = argparse.ArgumentParser(description='Process dir name')
 args.add_argument('json_name', type = str, help = 'The json file that extracts the relations!')
@@ -54,6 +55,11 @@ class ReadDataset(object):
                             each_relations[e[1]][e[0]] = 1  
                             
                     tmp_relation = np.array(each_relations)
+                    
+                    # fix the bug of diagonal items which should be 1
+                    for i_diag in range(true_length):
+                        tmp_relation[i_diag, i_diag] = 1
+                        
                     features = tf.train.Features(
                         feature = {
                             'adjs': tf.train.Feature(bytes_list = tf.train.BytesList(value = [tmp_relation.astype(np.int32).tostring()]))  
