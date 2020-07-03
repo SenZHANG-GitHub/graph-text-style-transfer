@@ -53,7 +53,7 @@ flags.DEFINE_integer('fulltrain_nepochs', 3, 'Replace the one in config.py')
 FLAGS = flags.FLAGS
 
 config = importlib.import_module(FLAGS.config)
-# possible ablation: SGT-I, CGT-I,warm-up-k, c-clas-g-only, c-clas-s-only, t-clas-g-only, t-clas-s-only
+# possible ablation: SGT-I, CGT-I, SGT-CGT-I, c-clas-g-only, c-clas-s-only
 ablation = FLAGS.ablation
 output_path = FLAGS.out
 if output_path == 'none':
@@ -121,7 +121,7 @@ def _main(_):
     lambda_t_sentence = tf.placeholder(dtype=tf.float32, shape=[], name='lambda_t_sentence')
     
     if config.model_name == 'GTAE':
-        model = GTAE(batch, vocab, gamma, lambda_t_graph, lambda_t_sentence, config.model)
+        model = GTAE(batch, vocab, gamma, lambda_t_graph, lambda_t_sentence, ablation, config.model)
     else:
         logger.error('config.model_name: {} is incorrect'.format(config.model_name))
         raise ValueError('config.model_name: {} is incorrect'.format(config.model_name))

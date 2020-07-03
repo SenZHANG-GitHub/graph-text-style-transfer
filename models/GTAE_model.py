@@ -46,17 +46,22 @@ import pdb
 class GTAE(object):
     """Control  
     """
-    def __init__(self, inputs, vocab, gamma, lambda_t_graph, lambda_t_sentence, hparams=None):
+    def __init__(self, inputs, vocab, gamma, lambda_t_graph, lambda_t_sentence, ablation, hparams=None):
         self._hparams = tx.HParams(hparams, None)
-        self._prepare_inputs(inputs, vocab, gamma, lambda_t_graph, lambda_t_sentence),
+        self._prepare_inputs(inputs, vocab, gamma, lambda_t_graph, lambda_t_sentence, ablation),
         self._build_model()
     
 
-    def _prepare_inputs(self, inputs, vocab, gamma, lambda_t_graph, lambda_t_sentence):
+    def _prepare_inputs(self, inputs, vocab, gamma, lambda_t_graph, lambda_t_sentence, ablation):
         self.vocab = vocab
         self.gamma = gamma
         self.lambda_t_graph = lambda_t_graph
         self.lambda_t_sentence = lambda_t_sentence
+        
+        # possible ablation: SGT-I, CGT-I, SGT-CGT-I, c-clas-g-only, c-clas-s-only
+        if ablation not in ['full', 'SGT-I', 'CGT-I', 'SGT-CGT-I', 'c-clas-g-only', 'c-clas-s-only']:
+            raise ValueError('--ablation {} is not supported'.format(ablation))
+        self.ablation = ablation
 
         # the first token is the BOS token
         self.text_ids = inputs['text_ids']
@@ -68,7 +73,14 @@ class GTAE(object):
         enc_shape = tf.shape(self.text_ids)
         adjs = tf.to_int32(tf.reshape(inputs['adjs'], [-1,17,17]))
         self.adjs = adjs[:, :enc_shape[1], :enc_shape[1]]
-        # self.adjs_length = tf.reduce_sum(adjs, axis=2)
+        
+        # 'identities' is only given in config_yelp
+        if ablation in ['SGT-I', 'CGT-I', 'SGT-CGT-I']:
+            if 'identities' in inputs.keys():
+                identities = tf.to_int32(tf.reshape(inputs['identities'], [-1,17,17]))
+                self.identities = identities[:, :enc_shape[1], :enc_shape[1]]
+            else:
+                raise ValueError('identities.tfrecords must be given in config if using --ablation SGT-I/CGT-I/SGT-CGT-I')
 
 
     def _build_model(self):
@@ -139,17 +151,30 @@ class GTAE(object):
         self.embedding_text_ids_ = tf.concat([c_, self.pre_embedding_text_ids], axis=1)
 
         # encoding output for original style
-        self.enc_outputs = self.self_graph_encoder(
-            inputs = self.embedding_text_ids, 
-            sequence_length = self.sequence_length, 
-            adjs = self.adjs
-        )
-        # encoding output_ for transferred style
-        self.enc_outputs_ = self.self_graph_encoder(
-            inputs = self.embedding_text_ids_, 
-            sequence_length = self.sequence_length, 
-            adjs = self.adjs
-        )
+        if self.ablation in ['SGT-I', 'SGT-CGT-I']: 
+            self.enc_outputs = self.self_graph_encoder(
+                inputs = self.embedding_text_ids, 
+                sequence_length = self.sequence_length, 
+                adjs = self.identities
+            )
+            # encoding output_ for transferred style
+            self.enc_outputs_ = self.self_graph_encoder(
+                inputs = self.embedding_text_ids_, 
+                sequence_length = self.sequence_length, 
+                adjs = self.identities
+            )
+        else:
+            self.enc_outputs = self.self_graph_encoder(
+                inputs = self.embedding_text_ids, 
+                sequence_length = self.sequence_length, 
+                adjs = self.adjs
+            )
+            # encoding output_ for transferred style
+            self.enc_outputs_ = self.self_graph_encoder(
+                inputs = self.embedding_text_ids_, 
+                sequence_length = self.sequence_length, 
+                adjs = self.adjs
+            )
         self._train_ori_clas_graph()
         self._train_trans_clas_graph()
     
@@ -211,30 +236,48 @@ class GTAE(object):
         Create:
             self.g_outputs, self.g_outputs_
         """
-        # Auto-encoding loss for G
-        # The first token that represents BOS/CLS is removed
-        # Currently use the same sequence_length and memory_sequence_length
-        # Later we may consider use the CLS flag in embedding_text_ids to guide the generation
-        self.g_outputs = self.cross_graph_encoder(
-            inputs = self.enc_outputs[:, 1:, :], 
-            memory = self.pre_embedding_text_ids,
-            sequence_length = self.sequence_length - 1, 
-            memory_sequence_length = self.sequence_length-1,
-            adjs = self.adjs[:, 1:, 1:],
-            encoder_output = True
-        )
-        
-        # Classification loss for the generator, based on soft samples
-        # Continuous softmax decoding, used in training
-        # We will consider Gumbel-softmax decoding
-        self.g_outputs_ = self.cross_graph_encoder(
-            inputs = self.enc_outputs_[:, 1:, :],
-            memory = self.pre_embedding_text_ids,
-            sequence_length = self.sequence_length - 1,
-            memory_sequence_length = self.sequence_length - 1,
-            adjs = self.adjs[:, 1:, 1:],
-            encoder_output = True
-        )
+        if self.ablation in ['CGT-I', 'SGT-CGT-I']:
+            self.g_outputs = self.cross_graph_encoder(
+                inputs = self.enc_outputs[:, 1:, :], 
+                memory = self.pre_embedding_text_ids,
+                sequence_length = self.sequence_length - 1, 
+                memory_sequence_length = self.sequence_length-1,
+                adjs = self.identities[:, 1:, 1:],
+                encoder_output = True
+            )
+            self.g_outputs_ = self.cross_graph_encoder(
+                inputs = self.enc_outputs_[:, 1:, :],
+                memory = self.pre_embedding_text_ids,
+                sequence_length = self.sequence_length - 1,
+                memory_sequence_length = self.sequence_length - 1,
+                adjs = self.identities[:, 1:, 1:],
+                encoder_output = True
+            )
+        else:
+            # Auto-encoding loss for G
+            # The first token that represents BOS/CLS is removed
+            # Currently use the same sequence_length and memory_sequence_length
+            # Later we may consider use the CLS flag in embedding_text_ids to guide the generation
+            self.g_outputs = self.cross_graph_encoder(
+                inputs = self.enc_outputs[:, 1:, :], 
+                memory = self.pre_embedding_text_ids,
+                sequence_length = self.sequence_length - 1, 
+                memory_sequence_length = self.sequence_length-1,
+                adjs = self.adjs[:, 1:, 1:],
+                encoder_output = True
+            )
+            
+            # Classification loss for the generator, based on soft samples
+            # Continuous softmax decoding, used in training
+            # We will consider Gumbel-softmax decoding
+            self.g_outputs_ = self.cross_graph_encoder(
+                inputs = self.enc_outputs_[:, 1:, :],
+                memory = self.pre_embedding_text_ids,
+                sequence_length = self.sequence_length - 1,
+                memory_sequence_length = self.sequence_length - 1,
+                adjs = self.adjs[:, 1:, 1:],
+                encoder_output = True
+            )
 
         self._train_auto_encoder()
         self._train_ori_clas_sentence()
@@ -360,7 +403,13 @@ class GTAE(object):
     def _get_loss_train_op(self):
         # Aggregates losses
         self.loss_g = self.loss_g_ae + self.lambda_t_graph * self.loss_g_clas_graph + self.lambda_t_sentence * self.loss_g_clas_sentence
-        self.loss_d = self.loss_d_clas_graph + self.loss_d_clas_sentence
+        # possible ablation: SGT-I, CGT-I, SGT-CGT-I, c-clas-g-only, c-clas-s-only
+        if self.ablation == 'c-clas-g-only':
+            self.loss_d = self.loss_d_clas_graph
+        elif self.ablation == 'c-clas-s-only':
+            self.loss_d = self.loss_d_clas_sentence
+        else:
+            self.loss_d = self.loss_d_clas_graph + self.loss_d_clas_sentence
 
         # Creates optimizers
         self.g_vars = collect_trainable_variables(
@@ -409,7 +458,8 @@ class GTAE(object):
             "accu_g_graph": self.metrics["accu_g_graph"],
             "accu_g_sentence": self.metrics["accu_g_sentence"],
             "accu_g_gdy_sentence": self.metrics["accu_g_gdy_sentence"]
-            # 'adjs': self.adjs
+            # 'adjs': self.adjs,
+            # 'identities': self.identities
         }
         self.fetches_train_d = {
             "loss_d": self.train_ops["train_op_d"],
@@ -417,7 +467,8 @@ class GTAE(object):
             "loss_d_clas_sentence": self.losses["loss_d_clas_sentence"],
             "accu_d_graph": self.metrics["accu_d_graph"],
             "accu_d_sentence": self.metrics["accu_d_sentence"]
-            # 'adjs': self.adjs
+            # 'adjs': self.adjs,
+            # 'identities': self.identities
         }
         fetches_eval = {"batch_size": get_batch_size(self.text_ids)}
         fetches_eval.update(self.losses)

@@ -31,7 +31,7 @@ Training:
     + 9000 is the server port, which should be consistent with the previous step
     + for large text file, split into multiple sub-files first and run stanford_dependency in multi-processes
   + build adjacency matrices from raw adjacency file, e.g.
-    + ＇python utils_preproc/dataset_read.py data/yelp/sentiment.train.adjs data/yelp/sentiment.train_adjs.tfrecords'
+    + ＇python utils_preproc/dataset_read.py data/yelp/sentiment.train.adjs data/yelp/sentiment.train_adjs.tfrecords data/yelp/sentiment.train_identities.tfrecords'
 
 + generate vocab of trainning data, e.g.
   + 'python get_vocab.py data/yelp/sentiment.train.text data/yelp/vocab_yelp'

@@ -52,6 +52,18 @@ train_data = {
                 'adjs':['tf.string', 'FixedLenFeature']
             }
         }
+        # {
+        #     'files': './data/political/political.train_identities.tfrecords',
+        #     'data_type': 'tf_record',
+        #     'numpy_options': {
+        #         'numpy_ndarray_name': 'identities',
+        #         'shape': [max_sequence_length + 2, max_sequence_length + 2],
+        #         'dtype': 'tf.int32'
+        #     },
+        #     'feature_original_types':{
+        #         'identities':['tf.string', 'FixedLenFeature']
+        #     }
+        # }
     ],
     'name': 'train'
 }
@@ -60,11 +72,13 @@ val_data = copy.deepcopy(train_data)
 val_data['datasets'][0]['files'] = './data/political/political.dev.text'
 val_data['datasets'][1]['files'] = './data/political/political.dev.labels'
 val_data['datasets'][2]['files'] = './data/political/political.dev_adjs.tfrecords'
+# val_data['datasets'][3]['files'] = './data/political/political.dev_identities.tfrecords'
 
 test_data = copy.deepcopy(train_data)
 test_data['datasets'][0]['files'] = './data/political/political.test.text'
 test_data['datasets'][1]['files'] = './data/political/political.test.labels'
 test_data['datasets'][2]['files'] = './data/political/political.test_adjs.tfrecords'
+# test_data['datasets'][3]['files'] = './data/political/political.test_identities.tfrecords'
 
 dim_hidden = 512
 model = {
