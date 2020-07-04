@@ -13,6 +13,7 @@ from content_preservation import mask_style_words
 from content_preservation import generate_style_modified_texts
 from content_preservation import load_word2vec_model
 from content_preservation import calculate_wmd_scores
+from naturalness import NeuralBasedClassifier
 
 args = argparse.ArgumentParser(description='evaluating the model')
 args.add_argument('--dataset', type=str, default='yelp', help='the dataset to use')
@@ -81,8 +82,16 @@ if eval_cp:
     mean_wmd_scores_masked = all_wmd_scores_masked / num_wmd_scores_masked
     print('mean masked WMD: {}'.format(mean_wmd_scores_masked))
     
-    
 if eval_nat:
     print('Evaluating Naturalness')
     print('========================================')
-
+    trans_texts = load_dataset('eval_results/{}/{}/trans.text'.format(dataset, model))
+    naturalness_results = dict()
+    for naturalness_type in ['ARAE', 'CAAE', 'DAR']:
+        neural_classifier = NeuralBasedClassifier(naturalness_type)
+        scores = neural_classifier.score(trans_texts)
+        mean_score = np.mean(scores)
+        naturalness_results[naturalness_type] = mean_score
+    
+    for naturalness_type in ['ARAE', 'CAAE', 'DAR']:
+        print('mean naturalness score from {} model: {}'.format(naturalness_type, naturalness_results[naturalness_type]))

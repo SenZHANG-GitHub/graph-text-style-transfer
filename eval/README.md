@@ -1,5 +1,5 @@
 Dependencies: 
-+ gensim, keras, pyemd, scipy, sklearn, matplotlib, pandas
++ gensim, keras==2.2.4, pyemd, scipy, scikit-learn==0.20, matplotlib, pandas
 + pip install -r requirements.txt
 
 Folder **style_lexicon** - words used to compile style lexicon used in evaluation of content preservation
@@ -17,6 +17,7 @@ Step 2:
 + ```python style_lexicon.py```
 + Create style_weights_extract_l1_reg_C_3_dataset.pkl and vectorizer_dataset.pkl in Folder **eval_models**
 + Create style_words_and_weights_dataset.json in Folder **style_lexicon**
++ Create vecterizer_dataset.pkl in **eval_models** as well
 
 ## Get style classifer and generate distribution files for Style Transfer 
 Step 1:
@@ -44,3 +45,8 @@ Step 1:
 
 Step 2:
 + ```python eval_main.py --dataset yelp --model XX --eval content_preservation```
+
+## Get vectorizers for Content Preservation
+Step 1:
++ Download the trained naturalness_classifiers/ and vecterizer.pkl on https://github.com/passeul/style-transfer-model-evaluation/tree/master/models into **eval_models**
++ ```python eval_main.py --dataset yelp --model XX --eval naturalness```
