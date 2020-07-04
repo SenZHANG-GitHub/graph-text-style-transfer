@@ -1,0 +1,7 @@
+gensim
+keras
+matplotlib
+pyemd
+scipy
+scikit-learn==0.20
+pandas
