@@ -46,7 +46,21 @@ Step 1:
 Step 2:
 + ```python eval_main.py --dataset yelp --model XX --eval content_preservation```
 
-## Get vectorizers for Content Preservation
+## Get naturalness scores
 Step 1:
 + Download the trained naturalness_classifiers/ and vecterizer.pkl on https://github.com/passeul/style-transfer-model-evaluation/tree/master/models into **eval_models**
-+ ```python eval_main.py --dataset yelp --model XX --eval naturalness```
++ ```python eval_main.py --dataset yelp --model GTAE-alfa-XX --eval naturalness```
+
+## Get bert-score for Content Preservation
+Step 1:
++ Install bert-score and modifying the codes to disable warning
+    + git clone https://github.com/Tiiiger/bert_score
+    + cd bert_score
+    + edit bert_score_cli/score.py and add the following two lines
+    + ```import logging```
+    + ```logging.basicConfig(level=logging.ERROR)```
+    + pip install .
++ bert-score -r XXX/ori.text -c XXX/trans.text --lang en -v 
+
+
+
