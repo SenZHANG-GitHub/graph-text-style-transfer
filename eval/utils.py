@@ -7,6 +7,19 @@ import numpy as np
 import pandas
 
 
+class MessageContainer:
+    def __init__(self):
+        self.msgs = []
+    
+    def append(self, msg):
+        self.msgs.append(msg)
+        print(msg)
+    
+    def display(self):
+        for msg in self.msgs:
+            print('{}'.format(msg))
+        
+
 ## I/O / LOADING
 def merge_datasets(dataset1, dataset2):
     x = []

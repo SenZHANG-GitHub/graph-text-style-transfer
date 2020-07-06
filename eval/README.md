@@ -10,7 +10,7 @@ Folder **evaluation_models" - auxiliary models used for running evaluation exper
 
 
 ## Get style lexicon
-Step 1: 
+Step 1: (Only Need to Do Once)
 + ```python prepare_eval_data.py```
 + Create data.all, data.all.0 and data.all.1 in Folder **eval_data** that corresponds to all, negative and positive texts
 Step 2:
@@ -20,39 +20,47 @@ Step 2:
 + Create vecterizer_dataset.pkl in **eval_models** as well
 
 ## Get style classifer and generate distribution files for Style Transfer 
-Step 1:
+Step 1: (Only Need to Do Once)
 + Go into the Folder **classifier**
 + ```cd classifier/```
 
-Step 2:
+Step 2: (Only Need to Do Once)
 + Generate classifier ckpt-1 in Folder **classifier/ckpt_dataset**
 + ```python clas_train.py --config config_train_yelp --dataset yelp```
 + ```python clas_train.py --config config_train_political --dataset political```
 + ```python clas_train.py --config config_train_title --dataset title```
 
-Step 3:
+Step 3: (**Need to Generate trans/ori.text/label for Every Model before Evaluation!**)
 + Generate trans/ori.text, trans/ori.label from raw text (e.g. val.13 for GTAE)
 + For GTAE: ```python split_text.py --dataset yelp --model GTAE-alfa-20200702-0 --filename val.13```
 
 Step 4:
-+ Generate style distributions for trans.text and ori.text for certain dataset
 + ```python eval_main.py --dataset yelp --model XXX --eval style_transfer```
++ Style distributions for trans.text and ori.text are implicitly generated
 
 ## Get vectorizers for Content Preservation
-Step 1:
+Step 1: (Only Need to Do Once)
 + ```python train_vectorizers.py```
-+ generate word2vec_masked/unmasked_dataset
++ generate word2vec_masked/unmasked_yelp/political/title
 
 Step 2:
 + ```python eval_main.py --dataset yelp --model XX --eval content_preservation```
 
 ## Get naturalness scores
-Step 1:
+Step 1: (Only Need to Do Once)
 + Download the trained naturalness_classifiers/ and vecterizer.pkl on https://github.com/passeul/style-transfer-model-evaluation/tree/master/models into **eval_models**
+
+Step 2:
 + ```python eval_main.py --dataset yelp --model GTAE-alfa-XX --eval naturalness```
 
+
+## Get the above metrics at the same time
+Step 1: 
++ ```python eval_main.py --dataset yelp --model GTAE-alfa-XX (--eval all)```
+
+
 ## Get bert-score for Content Preservation
-Step 1:
+Step 1: (Only Need to Do Once)
 + Install bert-score and modifying the codes to disable warning
     + git clone https://github.com/Tiiiger/bert_score
     + cd bert_score
@@ -60,7 +68,7 @@ Step 1:
     + ```import logging```
     + ```logging.basicConfig(level=logging.ERROR)```
     + pip install .
-+ bert-score -r XXX/ori.text -c XXX/trans.text --lang en -v 
++ ```python eval_bert.py --dataset yelp --model GTAE-alfa-XX ```
 
 
 

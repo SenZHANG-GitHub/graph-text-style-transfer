@@ -4,11 +4,15 @@ from tqdm import tqdm
 import numpy as np
 import argparse
 import math
+import os
+import tensorflow as tf
 from classifier.clas_test_distr import generate_style_distr
 from style_transfer_intensity import load_style_distributions
 from style_transfer_intensity import calculate_direction_corrected_emd
 from style_lexicon import load_lexicon
-from utils import load_dataset, merge_datasets
+from utils import load_dataset
+from utils import merge_datasets
+from utils import MessageContainer
 from content_preservation import mask_style_words
 from content_preservation import generate_style_modified_texts
 from content_preservation import load_word2vec_model
@@ -32,13 +36,18 @@ elif args.eval == 'content_preservation':
     eval_cp = True
 elif args.eval == 'naturalness':
     eval_nat = True
+else:
+    raise ValueError('--eval {} is not supported!'.format(args.eval))
 
-print('========================================')
-print('(1) Dataset: {} (2) Model: {}'.format(dataset, model))
-print('========================================')
+msgs = MessageContainer()
+
+msgs.append('========================================')
+msgs.append('(1) Dataset: {} (2) Model: {}'.format(dataset, model))
+msgs.append('========================================')
 if eval_sti:
-    print('Evaluating Style Transfer Intensity')
-    print('========================================')
+    tf.reset_default_graph()
+    msgs.append('Evaluating Style Transfer Intensity')
+    msgs.append('========================================')
     # Generate ori/trans_distribution.npz
     for style_ in ['trans', 'ori']:
         print('Generating {}_distribution.npz...'.format(style_))
@@ -54,12 +63,14 @@ if eval_sti:
         tmp_textcnn_itensity = calculate_direction_corrected_emd(ori_distr[i], trans_distr[i], trans_labels[i])
         textcnn_itensities.append(tmp_textcnn_itensity)
     mean_EMD = np.mean(textcnn_itensities)
-    print('transfer accuracy: {}'.format(trans_accu))
-    print('mean EMD: {}'.format(mean_EMD))
+    msgs.append('transfer accuracy: {}'.format(trans_accu))
+    msgs.append('mean EMD: {}'.format(mean_EMD))
+    msgs.append('========================================')
 
 if eval_cp:
-    print('Evaluating Content Preservation')
-    print('========================================')
+    tf.reset_default_graph()
+    msgs.append('Evaluating Content Preservation')
+    msgs.append('========================================')
     datatype = 'sentiment' if dataset == 'yelp' else dataset
     styles = {0: 'binary {}'.format(datatype)}
     style_features_and_weights_path = 'style_lexicon/style_words_and_weights_{}.json'.format(dataset)
@@ -80,11 +91,14 @@ if eval_cp:
             all_wmd_scores_masked += score_
             num_wmd_scores_masked += 1
     mean_wmd_scores_masked = all_wmd_scores_masked / num_wmd_scores_masked
-    print('mean masked WMD: {}'.format(mean_wmd_scores_masked))
+    msgs.append('mean masked WMD: {}'.format(mean_wmd_scores_masked))
+    msgs.append('-> for bert-scores: e.g., python -u eval_bert.py --dataset yelp --model GTAE-alfa-20200702-0')
+    msgs.append('========================================')
     
 if eval_nat:
-    print('Evaluating Naturalness')
-    print('========================================')
+    tf.reset_default_graph()
+    msgs.append('Evaluating Naturalness')
+    msgs.append('========================================')
     trans_texts = load_dataset('eval_results/{}/{}/trans.text'.format(dataset, model))
     naturalness_results = dict()
     for naturalness_type in ['ARAE', 'CAAE', 'DAR']:
@@ -94,4 +108,7 @@ if eval_nat:
         naturalness_results[naturalness_type] = mean_score
     
     for naturalness_type in ['ARAE', 'CAAE', 'DAR']:
-        print('mean naturalness score from {} model: {}'.format(naturalness_type, naturalness_results[naturalness_type]))
+        msgs.append('mean naturalness score from {} model: {}'.format(naturalness_type, naturalness_results[naturalness_type]))
+        msgs.append('========================================')
+
+msgs.display()
