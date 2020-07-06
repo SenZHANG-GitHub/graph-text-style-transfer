@@ -35,33 +35,14 @@ def replace_unk(text, vocab):
             new_text.append(word)
     return '{}\n'.format(' '.join(new_text))
 
-def split_GTAE(dataset, model, filename):
-    """
-    dataset: 'yelp'
-    model: 'GTAE-alfa-20200702-0'
-    filename: 'val.13'
-    """
+def process_text_label(dataset, ori_text, trans_text, filepath):
     datatype = 'sentiment' if dataset == 'yelp' else dataset
-    filepath = 'eval_results/{}/{}'.format(dataset, model)
-    all_text = []
-    with open('{}/{}'.format(filepath, filename), mode='r') as f:
-        for line in f.readlines():
-            all_text.append(line)
-    ori_text = []
-    trans_text = []
-    
-    for i in range(len(all_text)//2):
-        ori_text.append(all_text[2 * i])
-        trans_text.append(all_text[2 * i + 1])
-    
-    # Get the labels for ori_text and trans_text
     raw_dev_test_text = []
     raw_dev_test_labels = []
     raw_dev_test_text.extend(read_dataset('../data/{}/{}.dev.text'.format(dataset, datatype)))
     raw_dev_test_labels.extend(read_dataset('../data/{}/{}.dev.labels'.format(dataset, datatype)))
     raw_dev_test_text.extend(read_dataset('../data/{}/{}.test.text'.format(dataset, datatype)))
     raw_dev_test_labels.extend(read_dataset('../data/{}/{}.test.labels'.format(dataset, datatype)))
-    
     vocab = read_dataset('../data/{}/vocab_{}'.format(dataset, dataset))
     for iv, vocab_ in enumerate(vocab):
         vocab[iv] = vocab_[:-1]
@@ -83,7 +64,61 @@ def split_GTAE(dataset, model, filename):
     write_text('{}/trans.text'.format(filepath), trans_text)
     write_label('{}/ori.label'.format(filepath), ori_labels)
     write_label('{}/trans.label'.format(filepath), trans_labels)
+
+
+def split_GTAE(dataset, model, filename):
+    """
+    dataset: 'yelp'
+    model: 'GTAE-alfa-20200702-0'
+    filename: 'val.13'
+    """
+    filepath = 'eval_results/{}/{}'.format(dataset, model)
+    all_text = []
+    with open('{}/{}'.format(filepath, filename), mode='r') as fa:
+        for line in fa.readlines():
+            all_text.append(line)
+    ori_text_full = dict()
+    # trans_text_full = []
+    
+    for i in range(len(all_text)//2):
+        ori_text_full[all_text[2 * i]] = all_text[2 * i + 1]
+    
+    # Reduce the full results to ori_common.text
+    ori_text = []
+    trans_text = []
+    with open('eval_results/{}/ori_common.text'.format(dataset), mode='r') as fc:
+        for line in fc.readlines():
+            if line not in ori_text_full.keys():
+                pdb.set_trace()
+                raise ValueError('The common text is not in the dataset')
+            ori_text.append(line)
+            trans_text.append(ori_text_full[line])
+    
+    # Get the labels for ori_text and trans_text and write trans/ori.text/label
+    process_text_label(dataset, ori_text, trans_text, filepath)
+    
+
+def split_CAAE_ARAE_DAR(dataset, model):
+    """
+    dataset: 'yelp'
+    model: 'CAAE'
+    """
+    filepath = 'eval_results/{}/{}'.format(dataset, model)
+    ori_text, trans_text = [], []
+    with open('eval_results/{}/{}/origin_distribution.text'.format(dataset, model)) as fo:
+        for line in fo.readlines():
+            ori_text.append(line.split('|')[-1][1:])
+    with open('eval_results/{}/{}/trans_distribution.text'.format(dataset, model)) as ft:
+        for line in ft.readlines():
+            trans_text.append(line.split('|')[-1][1:])
+
+    # Get the labels for ori_text and trans_text and write trans/ori.text/label
+    process_text_label(dataset, ori_text, trans_text, filepath)
+
     
 
 if __name__ == '__main__':
-    split_GTAE(args.dataset, args.model, args.filename)
+    if 'GTAE' in args.model:
+        split_GTAE(args.dataset, args.model, args.filename)
+    elif args.model in ['CAAE', 'ARAE'] or 'DAR' in args.model:
+        split_CAAE_ARAE_DAR(args.dataset, args.model)
