@@ -6,8 +6,7 @@ Folder **style_lexicon** - words used to compile style lexicon used in evaluatio
 
 Folder **classifier** - codes to get style classifier for the evaluation of style transfer 
 
-Folder **evaluation_models" - auxiliary models used for running evaluation experiments
-
+Folder **evaluation_models** - auxiliary models used for running evaluation experiments
 
 ## Get style lexicon
 Step 1: (Only Need to Do Once)
@@ -53,11 +52,9 @@ Step 1: (Only Need to Do Once)
 Step 2:
 + ```python eval_main.py --dataset yelp --model GTAE-alfa-XX --eval naturalness```
 
-
 ## Get the above metrics at the same time
 Step 1: 
 + ```python eval_main.py --dataset yelp --model GTAE-alfa-XX (--eval all)```
-
 
 ## Get bert-score for Content Preservation
 Step 1: (Only Need to Do Once)
@@ -69,6 +66,11 @@ Step 1: (Only Need to Do Once)
     + ```logging.basicConfig(level=logging.ERROR)```
     + pip install .
 + ```python eval_bert.py --dataset yelp --model GTAE-alfa-XX ```
++ ```--rescale-with-baseline``` is used in eval_bert.py
 
+## Get BLEU scores 
+Step 1: 
++ Edit the variable ```models``` in cal_bleu.py
++ ```python cal_bleu.py```
 
 

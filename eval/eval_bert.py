@@ -17,6 +17,7 @@ msgs.append('========================================')
 
 ori_text_path = 'eval_results/{}/{}/ori.text'.format(dataset, model)
 trans_text_path = 'eval_results/{}/{}/trans.text'.format(dataset, model)
-os.system('bert-score -r {} -c {} --lang en -v'.format(ori_text_path, trans_text_path))
+# os.system('bert-score -r {} -c {} --lang en -v'.format(ori_text_path, trans_text_path))
+os.system('bert-score -r {} -c {} --lang en --rescale-with-baseline -v'.format(ori_text_path, trans_text_path))
 
 

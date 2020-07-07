@@ -53,12 +53,16 @@ def process_text_label(dataset, ori_text, trans_text, filepath):
     
     ori_labels = []
     trans_labels = []
+    cntt = 0
     for ori_text_ in ori_text:
+        ori_text_
         if ori_text_ not in raw_text_labels_dict.keys():
+            cntt += 1
             pdb.set_trace()
             raise ValueError('The original text is not in the dataset')
         ori_labels.append(raw_text_labels_dict[ori_text_])
         trans_labels.append(1 - raw_text_labels_dict[ori_text_])
+    print('total err_num: {}'.format(cntt))
     
     write_text('{}/ori.text'.format(filepath), ori_text)
     write_text('{}/trans.text'.format(filepath), trans_text)
