@@ -1,3 +1,7 @@
+Part of the codes are modified from:
+(1) https://github.com/Tiiiger/bert_score 
+(2) https://github.com/passeul/style-transfer-model-evaluation
+
 Dependencies: 
 + gensim, keras==2.2.4, pyemd, scipy, scikit-learn==0.20, matplotlib, pandas
 + pip install -r requirements.txt
