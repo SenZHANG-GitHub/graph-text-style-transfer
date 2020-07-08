@@ -70,7 +70,7 @@ Step 1: (Only Need to Do Once)
 
 ## Get BLEU scores 
 Step 1: 
-+ Edit the variable ```models``` in cal_bleu.py
-+ ```python cal_bleu.py```
++ ```python cal_bleu.py --dataset yelp --models CAAE,ARAE,DAR```
++ ```--models``` instead of ```--model``` -> Allows specifying multiple models to evaluate at the same time, which should be separated by comma
 
 

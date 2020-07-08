@@ -90,13 +90,19 @@ def split_GTAE(dataset, model, filename):
     # Reduce the full results to ori_common.text
     ori_text = []
     trans_text = []
+    vocab = read_dataset('../data/{}/vocab_{}'.format(dataset, dataset))
+    for iv, vocab_ in enumerate(vocab):
+        vocab[iv] = vocab_[:-1]
+    cnt = 0
     with open('eval_results/{}/ori_common.text'.format(dataset), mode='r') as fc:
         for line in fc.readlines():
             if line not in ori_text_full.keys():
+                # cnt += 1
                 pdb.set_trace()
                 raise ValueError('The common text is not in the dataset')
             ori_text.append(line)
             trans_text.append(ori_text_full[line])
+    # print('num of errs: {}'.format(cnt))
     
     # Get the labels for ori_text and trans_text and write trans/ori.text/label
     process_text_label(dataset, ori_text, trans_text, filepath)
