@@ -1,8 +1,10 @@
 # GTAE: Graph-Transformer Based Auto Encoder for Text Style Transfer
 
+## Benchmark
++ We also provide a benchmark at <https://github.com/ykshi/text-style-transfer-benchmark>
+
 ## Requires
 
-------
 Preprocessing:
 
 + jdk 1.8
@@ -11,13 +13,13 @@ Preprocessing:
 + tqdm
 
 ------
+
 Training:
 
 + python>=3.5
 + Tensorflow-gpu==1.13
 + Texar (<https://github.com/asyml/texar>)
 + Need to add data/ folder manually
-------
 
 ## Usage
 
