@@ -1,4 +1,4 @@
-# GTAE: Graph-Transformer Based Auto Encoder for Text Style Transfer
+# GTAE: Graph-Transformer based Auto-Encoders for Linguistic-Constrained Text Style Transfer 
 
 ## Benchmark
 + We also provide a benchmark at <https://github.com/ykshi/text-style-transfer-benchmark>
