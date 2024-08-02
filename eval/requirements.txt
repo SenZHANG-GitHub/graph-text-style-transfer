@@ -1,5 +1,5 @@
 gensim
-keras==2.2.4
+keras==2.13.1
 matplotlib
 pyemd
 scipy
